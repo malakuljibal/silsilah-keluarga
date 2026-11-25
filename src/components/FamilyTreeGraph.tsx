@@ -24,10 +24,30 @@ export default function FamilyTreeGraph({ members, onSelectMember, selectedMembe
     const memberMap = new Map<string, Person>(members.map((m) => [m.id, m]));
     const childIdsSet = new Set<string>();
 
-    // Catat semua anak
+    // Buat pemetaan dua arah: orang tua -> anak (gabungkan person.children DAN child.parents)
+    const parentToChildrenMap = new Map<string, Set<string>>();
+
     members.forEach((m) => {
+      // 1. Dari properti children milik parent
       if (m.children && m.children.length > 0) {
-        m.children.forEach((cId) => childIdsSet.add(cId));
+        if (!parentToChildrenMap.has(m.id)) {
+          parentToChildrenMap.set(m.id, new Set());
+        }
+        m.children.forEach((cId) => {
+          parentToChildrenMap.get(m.id)!.add(cId);
+          childIdsSet.add(cId);
+        });
+      }
+
+      // 2. Dari properti parents milik anak
+      if (m.parents && m.parents.length > 0) {
+        childIdsSet.add(m.id);
+        m.parents.forEach((pId) => {
+          if (!parentToChildrenMap.has(pId)) {
+            parentToChildrenMap.set(pId, new Set());
+          }
+          parentToChildrenMap.get(pId)!.add(m.id);
+        });
       }
     });
 
@@ -52,10 +72,10 @@ export default function FamilyTreeGraph({ members, onSelectMember, selectedMembe
         }
       }
 
-      // Kumpulkan anak-anak dari person ini (atau pasangannya)
-      const allChildIds = Array.from(
-        new Set([...(p.children || []), ...(spouse?.children || [])])
-      );
+      // Kumpulkan anak-anak dari person ini (dan pasangannya) secara dua arah
+      const pChildren = Array.from(parentToChildrenMap.get(p.id) || []);
+      const spChildren = spouse ? Array.from(parentToChildrenMap.get(spouse.id) || []) : [];
+      const allChildIds = Array.from(new Set([...pChildren, ...spChildren]));
 
       const childrenNodes: TreeNode[] = [];
       allChildIds.forEach((cId) => {
