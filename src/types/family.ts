@@ -2,6 +2,7 @@ export interface Person {
   id: string;
   fullName: string;
   callName: string;
+  clan?: string; // Marga / Rumpun Fam
   gender: 'male' | 'female';
   birthYear: number;
   deathYear?: number | null;

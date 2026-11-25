@@ -44,12 +44,14 @@ export default function MemberDetailModal({ person, onClose, allMembers, onSelec
             />
             <div className="text-center sm:text-left flex-1">
               <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 mb-1">
-                <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
-                  Generasi {person.generation}
-                </span>
                 <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${person.gender === 'male' ? 'bg-blue-100 text-blue-700' : 'bg-pink-100 text-pink-700'}`}>
                   {person.gender === 'male' ? 'Laki-laki ♂' : 'Perempuan ♀'}
                 </span>
+                {person.clan && (
+                  <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
+                    Marga {person.clan}
+                  </span>
+                )}
                 {person.deathYear && (
                   <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-600">
                     Almarhum/ah ({person.deathYear})

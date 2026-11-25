@@ -15,6 +15,7 @@ export default function AddMemberModal({ isOpen, onClose, onSuccess, allMembers 
   const [formData, setFormData] = useState({
     fullName: '',
     callName: '',
+    clan: '',
     gender: 'male',
     birthYear: 1990,
     deathYear: '',
@@ -101,12 +102,35 @@ export default function AddMemberModal({ isOpen, onClose, onSuccess, allMembers 
               />
             </div>
             <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Marga / Rumpun Fam</label>
+              <input
+                type="text"
+                value={formData.clan}
+                onChange={(e) => setFormData({ ...formData, clan: e.target.value })}
+                placeholder="Contoh: Ismail / Daeng Matarang"
+                className="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50/50"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">Nama Panggilan / Gelar Akrab</label>
               <input
                 type="text"
                 value={formData.callName}
                 onChange={(e) => setFormData({ ...formData, callName: e.target.value })}
                 placeholder="Contoh: Kakek Amir"
+                className="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50/50"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Pekerjaan / Peran</label>
+              <input
+                type="text"
+                value={formData.occupation}
+                onChange={(e) => setFormData({ ...formData, occupation: e.target.value })}
+                placeholder="Contoh: Tokoh Adat / Guru"
                 className="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50/50"
               />
             </div>
@@ -154,11 +178,11 @@ export default function AddMemberModal({ isOpen, onClose, onSuccess, allMembers 
                 onChange={(e) => setFormData({ ...formData, generation: Number(e.target.value) })}
                 className="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50/50"
               >
-                <option value="1">Generasi 1 (Tetua / Buyut / Kakek Nenek Utama)</option>
-                <option value="2">Generasi 2 (Orang Tua / Paman / Bibi)</option>
-                <option value="3">Generasi 3 (Anak / Sepupu / Mas Azam)</option>
-                <option value="4">Generasi 4 (Cucu)</option>
-                <option value="5">Generasi 5 (Cicit)</option>
+                <option value="1">Tingkat 1 (Leluhur / Kakek Nenek)</option>
+                <option value="2">Tingkat 2 (Orang Tua / Paman / Bibi)</option>
+                <option value="3">Tingkat 3 (Anak / Kemenakan)</option>
+                <option value="4">Tingkat 4 (Cucu)</option>
+                <option value="5">Tingkat 5 (Cicit)</option>
               </select>
             </div>
             <div>
@@ -191,7 +215,7 @@ export default function AddMemberModal({ isOpen, onClose, onSuccess, allMembers 
             >
               {allMembers.map((m) => (
                 <option key={m.id} value={m.id}>
-                  {m.fullName} ({m.callName || 'Tanpa Panggilan'}) - Gen {m.generation}
+                  {m.fullName} ({m.callName || 'Tanpa Panggilan'})
                 </option>
               ))}
             </select>

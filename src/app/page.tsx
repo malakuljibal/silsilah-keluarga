@@ -1,10 +1,10 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   TreePine, Users, Search, PlusCircle, LogIn, LogOut, 
   MapPin, ShieldCheck, Heart, Sparkles, Filter, 
-  ChevronRight, Calendar, UserCheck
+  ChevronRight, Calendar, UserCheck, Bookmark, Crown, ChevronDown
 } from 'lucide-react';
 import { Person } from '@/types/family';
 import LoginModal from '@/components/LoginModal';
@@ -16,14 +16,14 @@ export default function HomePage() {
   const [members, setMembers] = useState<Person[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedGen, setSelectedGen] = useState<string>('all');
+  const [selectedClan, setSelectedClan] = useState<string>('all');
   const [user, setUser] = useState<{ name: string; role: string } | null>(null);
 
   // Modals state
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [selectedPerson, setSelectedPerson] = useState<Person | null>(null);
-  const [activeTab, setActiveTab] = useState<'tree' | 'directory'>('tree');
+  const [activeTab, setActiveTab] = useState<'tree' | 'directory' | 'clans'>('tree');
 
   const fetchMembers = async () => {
     try {
@@ -57,18 +57,46 @@ export default function HomePage() {
     setUser(null);
   };
 
-  // Filtered members
-  const filteredMembers = members.filter((m) => {
-    const matchesSearch = 
-      m.fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (m.callName && m.callName.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      (m.occupation && m.occupation.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      (m.address && m.address.toLowerCase().includes(searchQuery.toLowerCase()));
+  // Group members by Clan / Marga
+  const clansSummary = useMemo(() => {
+    const clanMap: { [key: string]: Person[] } = {};
+    members.forEach((m) => {
+      const clanName = m.clan?.trim() || 'Lainnya';
+      if (!clanMap[clanName]) {
+        clanMap[clanName] = [];
+      }
+      clanMap[clanName].push(m);
+    });
+    return Object.entries(clanMap).map(([name, people]) => ({
+      name,
+      count: people.length,
+      people,
+    })).sort((a, b) => b.count - a.count);
+  }, [members]);
 
-    const matchesGen = selectedGen === 'all' || m.generation.toString() === selectedGen;
+  const uniqueClans = useMemo(() => {
+    const set = new Set<string>();
+    members.forEach((m) => {
+      if (m.clan?.trim()) set.add(m.clan.trim());
+    });
+    return Array.from(set).sort();
+  }, [members]);
 
-    return matchesSearch && matchesGen;
-  });
+  // Filtered members for Directory and Tree
+  const filteredMembers = useMemo(() => {
+    return members.filter((m) => {
+      const matchesSearch = 
+        m.fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (m.callName && m.callName.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (m.clan && m.clan.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (m.occupation && m.occupation.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (m.address && m.address.toLowerCase().includes(searchQuery.toLowerCase()));
+
+      const matchesClan = selectedClan === 'all' || (m.clan?.trim() === selectedClan);
+
+      return matchesSearch && matchesClan;
+    });
+  }, [members, searchQuery, selectedClan]);
 
   return (
     <div className="min-h-screen flex flex-col bg-[#F8FAFC]">
@@ -141,7 +169,7 @@ export default function HomePage() {
                 Pohon Kekerabatan & Warisan Leluhur Desa Lungkap
               </h1>
               <p className="mt-2 text-sm text-slate-600 leading-relaxed">
-                Menelusuri jejak darah, ikatan persaudaraan, dan tali silaturahmi antar generasi keluarga besar Desa Lungkap secara teratur, rapi, dan mudah diakses oleh anak cucu.
+                Menelusuri jejak darah, ikatan persaudaraan, dan rumpun marga keluarga besar Desa Lungkap secara teratur, rapi, dan mudah diakses oleh anak cucu.
               </p>
             </div>
 
@@ -159,13 +187,11 @@ export default function HomePage() {
 
               <div className="px-5 py-3.5 bg-white rounded-2xl border border-slate-200/80 shadow-sm flex items-center gap-3">
                 <div className="p-2.5 bg-teal-50 rounded-xl text-teal-600">
-                  <TreePine className="w-5 h-5" />
+                  <Bookmark className="w-5 h-5" />
                 </div>
                 <div>
-                  <div className="text-xl font-extrabold text-slate-800">
-                    {Array.from(new Set(members.map((m) => m.generation))).length}
-                  </div>
-                  <div className="text-[11px] font-medium text-slate-500">Tingkat Generasi</div>
+                  <div className="text-xl font-extrabold text-slate-800">{clansSummary.length}</div>
+                  <div className="text-[11px] font-medium text-slate-500">Rumpun Marga</div>
                 </div>
               </div>
             </div>
@@ -173,7 +199,7 @@ export default function HomePage() {
 
           {/* Search & Tabs Controls */}
           <div className="mt-8 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 pt-6 border-t border-slate-100">
-            {/* View Switcher */}
+            {/* View Switcher with Marga Tab */}
             <div className="inline-flex p-1 rounded-2xl bg-slate-200/70 self-start">
               <button
                 onClick={() => setActiveTab('tree')}
@@ -187,6 +213,17 @@ export default function HomePage() {
                 Bagan Silsilah Pohon
               </button>
               <button
+                onClick={() => setActiveTab('clans')}
+                className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 ${
+                  activeTab === 'clans'
+                    ? 'bg-white text-emerald-700 shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <Bookmark className="w-3.5 h-3.5" />
+                Daftar Marga ({clansSummary.length})
+              </button>
+              <button
                 onClick={() => setActiveTab('directory')}
                 className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 ${
                   activeTab === 'directory'
@@ -195,36 +232,37 @@ export default function HomePage() {
                 }`}
               >
                 <Users className="w-3.5 h-3.5" />
-                Direktori Kerabat ({filteredMembers.length})
+                Semua Kerabat ({filteredMembers.length})
               </button>
             </div>
 
             {/* Filters & Search */}
             <div className="flex flex-wrap items-center gap-3">
-              <div className="relative flex-1 sm:w-64">
+              {/* Clan Quick Filter */}
+              <div className="relative">
+                <select
+                  value={selectedClan}
+                  onChange={(e) => setSelectedClan(e.target.value)}
+                  className="pl-3 pr-8 py-2 text-xs font-medium rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-sm appearance-none cursor-pointer text-slate-700"
+                >
+                  <option value="all">Semua Marga</option>
+                  {uniqueClans.map((c) => (
+                    <option key={c} value={c}>Marga {c}</option>
+                  ))}
+                </select>
+                <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+              </div>
+
+              {/* Search input */}
+              <div className="relative flex-1 sm:w-72">
                 <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input
                   type="text"
-                  placeholder="Cari nama, panggilan, alamat..."
+                  placeholder="Cari nama, marga, alamat..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full pl-9 pr-4 py-2 text-xs rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-sm"
                 />
-              </div>
-
-              <div className="relative">
-                <select
-                  value={selectedGen}
-                  onChange={(e) => setSelectedGen(e.target.value)}
-                  className="appearance-none pl-8 pr-8 py-2 text-xs rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 text-slate-700 font-medium shadow-sm cursor-pointer"
-                >
-                  <option value="all">Semua Generasi</option>
-                  <option value="1">Generasi I (Leluhur)</option>
-                  <option value="2">Generasi II (Orang Tua)</option>
-                  <option value="3">Generasi III (Penerus)</option>
-                  <option value="4">Generasi IV (Cucu)</option>
-                </select>
-                <Filter className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
               </div>
             </div>
           </div>
@@ -247,9 +285,11 @@ export default function HomePage() {
                     <h3 className="font-bold text-slate-800 text-sm">Visualisasi Bagan Pohon Keluarga</h3>
                     <p className="text-xs text-slate-500">Klik salah satu kerabat untuk melihat hubungan dan riwayat lengkapnya</p>
                   </div>
-                  <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200/60">
-                    Interaktif
-                  </span>
+                  {selectedClan !== 'all' && (
+                    <span className="text-[11px] font-semibold text-emerald-800 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200 flex items-center gap-1.5">
+                      <Bookmark className="w-3 h-3 text-emerald-600" /> Marga: {selectedClan}
+                    </span>
+                  )}
                 </div>
                 <FamilyTreeGraph
                   members={filteredMembers}
@@ -257,55 +297,163 @@ export default function HomePage() {
                   selectedMemberId={selectedPerson?.id}
                 />
               </div>
-            ) : (
-              /* Directory Grid */
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-                {filteredMembers.map((person) => (
-                  <div
-                    key={person.id}
-                    onClick={() => setSelectedPerson(person)}
-                    className="group bg-white rounded-2xl p-5 border border-slate-200/80 hover:border-emerald-300 hover:shadow-md transition cursor-pointer flex flex-col justify-between"
-                  >
-                    <div>
-                      <div className="flex items-start gap-3.5 mb-3">
-                        <img
-                          src={person.photo || `https://api.dicebear.com/7.x/bottts/svg?seed=${person.id}`}
-                          alt={person.fullName}
-                          className="w-12 h-12 rounded-xl object-cover ring-2 ring-slate-100 group-hover:ring-emerald-400 transition"
-                        />
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-1.5 mb-0.5">
-                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-100">
-                              Gen {person.generation}
-                            </span>
-                            <span className="text-[10px] text-slate-400">
-                              {person.birthYear} {person.deathYear ? `- ${person.deathYear}` : ''}
-                            </span>
+            ) : activeTab === 'clans' ? (
+              /* Menu & Tampilan Marga */
+              <div className="space-y-6">
+                <div className="bg-emerald-50/60 border border-emerald-200/60 rounded-2xl p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                  <div>
+                    <h3 className="font-extrabold text-slate-800 text-base flex items-center gap-2">
+                      <Bookmark className="w-4 h-4 text-emerald-600" />
+                      Rumpun Marga & Garis Keturunan Desa Lungkap
+                    </h3>
+                    <p className="text-xs text-slate-600 mt-1">
+                      Pengelompokan keluarga besar berdasarkan marga atau nama fam leluhur. Klik salah satu marga untuk melihat seluruh anggota kerabat.
+                    </p>
+                  </div>
+                  <div className="text-xs font-semibold px-3 py-1.5 bg-white text-emerald-800 rounded-xl border border-emerald-200 shadow-sm">
+                    {clansSummary.length} Rumpun Keluarga
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {clansSummary.map((clan) => (
+                    <div 
+                      key={clan.name}
+                      className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-sm hover:shadow-md transition flex flex-col justify-between"
+                    >
+                      <div>
+                        <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-100">
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-10 h-10 rounded-2xl bg-emerald-100/70 text-emerald-700 flex items-center justify-center font-black text-sm">
+                              {clan.name.charAt(0)}
+                            </div>
+                            <div>
+                              <h4 className="font-extrabold text-slate-900 text-base">
+                                Marga {clan.name}
+                              </h4>
+                              <p className="text-xs text-slate-400 font-medium">
+                                {clan.count} Anggota Keluarga
+                              </p>
+                            </div>
                           </div>
-                          <h4 className="font-bold text-sm text-slate-800 group-hover:text-emerald-700 transition truncate">
-                            {person.fullName}
-                          </h4>
-                          {person.callName && (
-                            <p className="text-xs text-slate-500 font-medium">"{person.callName}"</p>
-                          )}
+                          <span className="text-[10px] font-bold px-2 py-1 rounded-full bg-slate-100 text-slate-600">
+                            Fam
+                          </span>
+                        </div>
+
+                        {/* List of members in this clan */}
+                        <div className="space-y-2 mb-4">
+                          {clan.people.map((person) => (
+                            <div
+                              key={person.id}
+                              onClick={() => setSelectedPerson(person)}
+                              className="p-2.5 rounded-xl bg-slate-50 hover:bg-emerald-50/70 border border-slate-100/80 hover:border-emerald-200 transition cursor-pointer flex items-center justify-between"
+                            >
+                              <div className="flex items-center gap-2.5 min-w-0">
+                                <img
+                                  src={person.photo || `https://api.dicebear.com/7.x/bottts/svg?seed=${person.id}`}
+                                  alt={person.fullName}
+                                  className="w-8 h-8 rounded-lg object-cover"
+                                />
+                                <div className="truncate">
+                                  <div className="font-bold text-xs text-slate-800 truncate">{person.fullName}</div>
+                                  <div className="text-[10px] text-slate-400">{person.occupation || person.address}</div>
+                                </div>
+                              </div>
+                              <ChevronRight className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
+                            </div>
+                          ))}
                         </div>
                       </div>
 
-                      {person.bio && (
-                        <p className="text-xs text-slate-600 line-clamp-2 italic bg-slate-50/80 p-2.5 rounded-xl border border-slate-100/80 mb-3">
-                          "{person.bio}"
-                        </p>
-                      )}
+                      <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
+                        <button
+                          onClick={() => {
+                            setSelectedClan(clan.name);
+                            setActiveTab('tree');
+                          }}
+                          className="text-xs font-semibold text-emerald-700 hover:text-emerald-800 flex items-center gap-1 transition"
+                        >
+                          <TreePine className="w-3.5 h-3.5" /> Lihat di Bagan Pohon
+                        </button>
+                        <button
+                          onClick={() => {
+                            setSelectedClan(clan.name);
+                            setActiveTab('directory');
+                          }}
+                          className="text-xs font-semibold text-slate-600 hover:text-slate-900 transition"
+                        >
+                          Lihat Direktori
+                        </button>
+                      </div>
                     </div>
-
-                    <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
-                      <span className="truncate max-w-[170px]">{person.occupation || person.address}</span>
-                      <span className="font-semibold text-emerald-600 flex items-center gap-1 text-[11px] group-hover:translate-x-0.5 transition">
-                        Detail <ChevronRight className="w-3.5 h-3.5" />
-                      </span>
-                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              /* Directory Grid */
+              <div className="space-y-4">
+                {selectedClan !== 'all' && (
+                  <div className="p-3 bg-emerald-50 rounded-2xl border border-emerald-200 flex items-center justify-between text-xs text-emerald-800">
+                    <span>Menampilkan anggota keluarga dari <strong>Marga {selectedClan}</strong></span>
+                    <button
+                      onClick={() => setSelectedClan('all')}
+                      className="font-bold underline hover:text-emerald-950"
+                    >
+                      Tampilkan Semua Marga
+                    </button>
                   </div>
-                ))}
+                )}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                  {filteredMembers.map((person) => (
+                    <div
+                      key={person.id}
+                      onClick={() => setSelectedPerson(person)}
+                      className="group bg-white rounded-2xl p-5 border border-slate-200/80 hover:border-emerald-300 hover:shadow-md transition cursor-pointer flex flex-col justify-between"
+                    >
+                      <div>
+                        <div className="flex items-start gap-3.5 mb-3">
+                          <img
+                            src={person.photo || `https://api.dicebear.com/7.x/bottts/svg?seed=${person.id}`}
+                            alt={person.fullName}
+                            className="w-12 h-12 rounded-xl object-cover ring-2 ring-slate-100 group-hover:ring-emerald-400 transition"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1.5 mb-0.5">
+                              {person.clan && (
+                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200/60">
+                                  Marga {person.clan}
+                                </span>
+                              )}
+                              <span className="text-[10px] text-slate-400">
+                                {person.birthYear} {person.deathYear ? `- ${person.deathYear}` : ''}
+                              </span>
+                            </div>
+                            <h4 className="font-bold text-sm text-slate-800 group-hover:text-emerald-700 transition truncate">
+                              {person.fullName}
+                            </h4>
+                            {person.callName && (
+                              <p className="text-xs text-slate-500 font-medium">"{person.callName}"</p>
+                            )}
+                          </div>
+                        </div>
+
+                        {person.bio && (
+                          <p className="text-xs text-slate-600 line-clamp-2 italic bg-slate-50/80 p-2.5 rounded-xl border border-slate-100/80 mb-3">
+                            "{person.bio}"
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+                        <span className="truncate max-w-[170px]">{person.occupation || person.address}</span>
+                        <span className="font-semibold text-emerald-600 flex items-center gap-1 text-[11px] group-hover:translate-x-0.5 transition">
+                          Detail <ChevronRight className="w-3.5 h-3.5" />
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </>
