@@ -10,9 +10,10 @@ interface MemberDetailModalProps {
   allMembers: Person[];
   onSelectPerson: (p: Person) => void;
   onEditPerson?: (p: Person) => void;
+  onAddChild?: (parent: Person) => void;
 }
 
-export default function MemberDetailModal({ person, onClose, allMembers, onSelectPerson, onEditPerson }: MemberDetailModalProps) {
+export default function MemberDetailModal({ person, onClose, allMembers, onSelectPerson, onEditPerson, onAddChild }: MemberDetailModalProps) {
   if (!person) return null;
 
   const parents = allMembers.filter((m) => person.parents?.includes(m.id));
@@ -169,8 +170,18 @@ export default function MemberDetailModal({ person, onClose, allMembers, onSelec
 
               {/* Children */}
               <div>
-                <div className="text-xs font-semibold text-slate-600 mb-1.5 flex items-center gap-1.5">
-                  <Users className="w-3.5 h-3.5 text-teal-600" /> Keturunan / Anak ({children.length}):
+                <div className="text-xs font-semibold text-slate-600 mb-1.5 flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <Users className="w-3.5 h-3.5 text-teal-600" /> Keturunan / Anak ({children.length}):
+                  </div>
+                  {onAddChild && (
+                    <button
+                      onClick={() => onAddChild(person)}
+                      className="text-[11px] text-emerald-600 hover:text-emerald-700 font-semibold flex items-center gap-1"
+                    >
+                      + Tambah Anak
+                    </button>
+                  )}
                 </div>
                 {children.length > 0 ? (
                   <div className="flex flex-wrap gap-2">

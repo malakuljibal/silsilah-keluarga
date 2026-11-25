@@ -9,9 +9,10 @@ interface AddMemberModalProps {
   onClose: () => void;
   onSuccess: (newPerson?: Person) => void;
   allMembers: Person[];
+  defaultParentId?: string;
 }
 
-export default function AddMemberModal({ isOpen, onClose, onSuccess, allMembers }: AddMemberModalProps) {
+export default function AddMemberModal({ isOpen, onClose, onSuccess, allMembers, defaultParentId }: AddMemberModalProps) {
   const [formData, setFormData] = useState({
     fullName: '',
     callName: '',
@@ -25,10 +26,19 @@ export default function AddMemberModal({ isOpen, onClose, onSuccess, allMembers 
     bio: '',
     phone: '',
     generation: 3,
-    parents: [] as string[],
+    parents: (defaultParentId ? [defaultParentId] : []) as string[],
     spouseId: '',
   });
   const [loading, setLoading] = useState(false);
+
+  React.useEffect(() => {
+    if (defaultParentId) {
+      setFormData((prev) => ({
+        ...prev,
+        parents: [defaultParentId],
+      }));
+    }
+  }, [defaultParentId]);
 
   if (!isOpen) return null;
 
@@ -58,28 +68,30 @@ export default function AddMemberModal({ isOpen, onClose, onSuccess, allMembers 
         children: [],
       };
 
-      // Try API first, fallback to client-side localStorage on static export
-      try {
-        const res = await fetch('/silsilah/api/members', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(newPerson),
-        });
-
-        if (res.ok) {
-          const created = await res.json();
-          onSuccess(created);
-          onClose();
-          return;
-        }
-      } catch (apiErr) {
-        console.warn('API post not available on static host, using local storage fallback', apiErr);
-      }
-
-      // Fallback: save to localStorage
+      // Save directly to localStorage in static export environment
       const localAdded = JSON.parse(localStorage.getItem('silsilah_custom_members') || '[]');
       localAdded.push(newPerson);
       localStorage.setItem('silsilah_custom_members', JSON.stringify(localAdded));
+
+      // Also update parents' children array if parents are selected
+      if (formData.parents && formData.parents.length > 0) {
+        const savedUpdatesRaw = localStorage.getItem('silsilah_edited_members') || '{}';
+        const savedUpdates = JSON.parse(savedUpdatesRaw);
+        
+        formData.parents.forEach((parentId) => {
+          const parentObj = allMembers.find((m) => m.id === parentId);
+          if (parentObj) {
+            const currentChildren = savedUpdates[parentId]?.children || parentObj.children || [];
+            if (!currentChildren.includes(newId)) {
+              savedUpdates[parentId] = {
+                ...(savedUpdates[parentId] || parentObj),
+                children: [...currentChildren, newId],
+              };
+            }
+          }
+        });
+        localStorage.setItem('silsilah_edited_members', JSON.stringify(savedUpdates));
+      }
 
       onSuccess(newPerson);
       onClose();

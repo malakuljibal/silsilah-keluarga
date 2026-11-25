@@ -23,6 +23,7 @@ export default function HomePage() {
   // Modals state
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [isAddOpen, setIsAddOpen] = useState(false);
+  const [defaultParentId, setDefaultParentId] = useState<string | undefined>(undefined);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [editingPerson, setEditingPerson] = useState<Person | null>(null);
   const [selectedPerson, setSelectedPerson] = useState<Person | null>(null);
@@ -533,7 +534,11 @@ export default function HomePage() {
 
       <AddMemberModal
         isOpen={isAddOpen}
-        onClose={() => setIsAddOpen(false)}
+        defaultParentId={defaultParentId}
+        onClose={() => {
+          setIsAddOpen(false);
+          setDefaultParentId(undefined);
+        }}
         onSuccess={(newPerson) => {
           if (newPerson) {
             setMembers((prev) => {
@@ -556,6 +561,11 @@ export default function HomePage() {
         onEditPerson={(p) => {
           setEditingPerson(p);
           setIsEditOpen(true);
+        }}
+        onAddChild={(parent: Person) => {
+          setDefaultParentId(parent.id);
+          setSelectedPerson(null);
+          setIsAddOpen(true);
         }}
       />
 
