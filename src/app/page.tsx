@@ -91,6 +91,14 @@ export default function HomePage() {
   };
 
   useEffect(() => {
+    // Bersihkan cache lama agar data baru Google Sheet tampil segar
+    const version = 'v2_sheet_sync';
+    if (typeof window !== 'undefined' && localStorage.getItem('silsilah_cache_version') !== version) {
+      localStorage.removeItem('silsilah_deleted_members');
+      localStorage.removeItem('silsilah_custom_members');
+      localStorage.removeItem('silsilah_edited_members');
+      localStorage.setItem('silsilah_cache_version', version);
+    }
     fetchMembers();
     const saved = localStorage.getItem('silsilah_user');
     if (saved) {
