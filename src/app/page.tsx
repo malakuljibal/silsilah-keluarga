@@ -9,6 +9,7 @@ import {
 import { Person } from '@/types/family';
 import LoginModal from '@/components/LoginModal';
 import AddMemberModal from '@/components/AddMemberModal';
+import EditMemberModal from '@/components/EditMemberModal';
 import MemberDetailModal from '@/components/MemberDetailModal';
 import FamilyTreeGraph from '@/components/FamilyTreeGraph';
 
@@ -22,6 +23,8 @@ export default function HomePage() {
   // Modals state
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [isAddOpen, setIsAddOpen] = useState(false);
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [editingPerson, setEditingPerson] = useState<Person | null>(null);
   const [selectedPerson, setSelectedPerson] = useState<Person | null>(null);
   const [activeTab, setActiveTab] = useState<'tree' | 'directory' | 'clans'>('tree');
 
@@ -34,14 +37,41 @@ export default function HomePage() {
         baseData = await res.json();
       }
 
+      // Check localStorage for deleted members
+      const deletedRaw = typeof window !== 'undefined' ? localStorage.getItem('silsilah_deleted_members') : null;
+      let deletedIds = new Set<string>();
+      if (deletedRaw) {
+        try {
+          deletedIds = new Set(JSON.parse(deletedRaw));
+        } catch (err) {
+          console.error(err);
+        }
+      }
+
+      // Filter out deleted members
+      if (deletedIds.size > 0) {
+        baseData = baseData.filter((m) => !deletedIds.has(m.id));
+      }
+
       // Check localStorage for client-added members
       const customRaw = typeof window !== 'undefined' ? localStorage.getItem('silsilah_custom_members') : null;
       if (customRaw) {
         try {
           const customMembers: Person[] = JSON.parse(customRaw);
           const baseIds = new Set(baseData.map((m) => m.id));
-          const additions = customMembers.filter((m) => !baseIds.has(m.id));
+          const additions = customMembers.filter((m) => !baseIds.has(m.id) && !deletedIds.has(m.id));
           baseData = [...baseData, ...additions];
+        } catch (err) {
+          console.error(err);
+        }
+      }
+
+      // Check localStorage for edited members
+      const editedRaw = typeof window !== 'undefined' ? localStorage.getItem('silsilah_edited_members') : null;
+      if (editedRaw) {
+        try {
+          const editedMap: { [id: string]: Person } = JSON.parse(editedRaw);
+          baseData = baseData.map((m) => (editedMap[m.id] ? { ...m, ...editedMap[m.id] } : m));
         } catch (err) {
           console.error(err);
         }
@@ -461,10 +491,23 @@ export default function HomePage() {
                       </div>
 
                       <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
-                        <span className="truncate max-w-[170px]">{person.occupation || person.address}</span>
-                        <span className="font-semibold text-emerald-600 flex items-center gap-1 text-[11px] group-hover:translate-x-0.5 transition">
-                          Detail <ChevronRight className="w-3.5 h-3.5" />
-                        </span>
+                        <span className="truncate max-w-[130px]">{person.occupation || person.address}</span>
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEditingPerson(person);
+                              setIsEditOpen(true);
+                            }}
+                            className="px-2 py-0.5 rounded-lg bg-slate-100 hover:bg-emerald-50 hover:text-emerald-700 text-[11px] font-medium text-slate-600 transition"
+                          >
+                            Edit
+                          </button>
+                          <span className="font-semibold text-emerald-600 flex items-center gap-0.5 text-[11px] group-hover:translate-x-0.5 transition">
+                            Detail <ChevronRight className="w-3.5 h-3.5" />
+                          </span>
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -510,6 +553,32 @@ export default function HomePage() {
         onClose={() => setSelectedPerson(null)}
         allMembers={members}
         onSelectPerson={(p) => setSelectedPerson(p)}
+        onEditPerson={(p) => {
+          setEditingPerson(p);
+          setIsEditOpen(true);
+        }}
+      />
+
+      <EditMemberModal
+        isOpen={isEditOpen}
+        person={editingPerson}
+        onClose={() => {
+          setIsEditOpen(false);
+          setEditingPerson(null);
+        }}
+        allMembers={members}
+        onSuccess={(updated) => {
+          setMembers((prev) => prev.map((m) => (m.id === updated.id ? updated : m)));
+          if (selectedPerson && selectedPerson.id === updated.id) {
+            setSelectedPerson(updated);
+          }
+        }}
+        onDelete={(deletedId) => {
+          setMembers((prev) => prev.filter((m) => m.id !== deletedId));
+          if (selectedPerson && selectedPerson.id === deletedId) {
+            setSelectedPerson(null);
+          }
+        }}
       />
     </div>
   );

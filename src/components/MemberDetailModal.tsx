@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { X, Heart, Phone, MapPin, Briefcase, Calendar, Users, Award, Shield } from 'lucide-react';
+import { X, Heart, Phone, MapPin, Briefcase, Calendar, Users, Award, Shield, Edit3 } from 'lucide-react';
 import { Person } from '@/types/family';
 
 interface MemberDetailModalProps {
@@ -9,9 +9,10 @@ interface MemberDetailModalProps {
   onClose: () => void;
   allMembers: Person[];
   onSelectPerson: (p: Person) => void;
+  onEditPerson?: (p: Person) => void;
 }
 
-export default function MemberDetailModal({ person, onClose, allMembers, onSelectPerson }: MemberDetailModalProps) {
+export default function MemberDetailModal({ person, onClose, allMembers, onSelectPerson, onEditPerson }: MemberDetailModalProps) {
   if (!person) return null;
 
   const parents = allMembers.filter((m) => person.parents?.includes(m.id));
@@ -25,7 +26,17 @@ export default function MemberDetailModal({ person, onClose, allMembers, onSelec
         onClick={(e) => e.stopPropagation()}
       >
         {/* Banner with Profile Cover */}
-        <div className="relative h-32 bg-gradient-to-r from-emerald-700 via-teal-700 to-emerald-900 p-6 flex justify-end items-start">
+        <div className="relative h-32 bg-gradient-to-r from-emerald-700 via-teal-700 to-emerald-900 p-6 flex justify-between items-start">
+          {onEditPerson && (
+            <button
+              onClick={() => onEditPerson(person)}
+              className="px-3 py-1.5 rounded-xl bg-white/20 hover:bg-white/30 text-white transition backdrop-blur-sm text-xs font-semibold flex items-center gap-1.5 shadow-sm border border-white/20"
+            >
+              <Edit3 className="w-3.5 h-3.5 text-emerald-200" />
+              <span>Edit Data</span>
+            </button>
+          )}
+          {!onEditPerson && <div />}
           <button
             onClick={onClose}
             className="p-1.5 rounded-full bg-black/20 hover:bg-black/40 text-white transition backdrop-blur-sm"
