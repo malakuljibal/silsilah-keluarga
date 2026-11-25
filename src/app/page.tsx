@@ -4,7 +4,8 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { 
   TreePine, Users, Search, PlusCircle, LogIn, LogOut, 
   MapPin, ShieldCheck, Heart, Sparkles, Filter, 
-  ChevronRight, Calendar, UserCheck, Bookmark, Crown, ChevronDown
+  ChevronRight, Calendar, UserCheck, Bookmark, Crown, ChevronDown,
+  FileSpreadsheet, Upload, Download, Eye, Focus
 } from 'lucide-react';
 import { Person } from '@/types/family';
 import LoginModal from '@/components/LoginModal';
@@ -12,6 +13,7 @@ import AddMemberModal from '@/components/AddMemberModal';
 import EditMemberModal from '@/components/EditMemberModal';
 import MemberDetailModal from '@/components/MemberDetailModal';
 import FamilyTreeGraph from '@/components/FamilyTreeGraph';
+import ExcelModal from '@/components/ExcelModal';
 
 export default function HomePage() {
   const [members, setMembers] = useState<Person[]>([]);
@@ -23,11 +25,13 @@ export default function HomePage() {
   // Modals state
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [isAddOpen, setIsAddOpen] = useState(false);
+  const [isExcelOpen, setIsExcelOpen] = useState(false);
   const [defaultParentId, setDefaultParentId] = useState<string | undefined>(undefined);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [editingPerson, setEditingPerson] = useState<Person | null>(null);
   const [selectedPerson, setSelectedPerson] = useState<Person | null>(null);
   const [activeTab, setActiveTab] = useState<'tree' | 'directory' | 'clans'>('tree');
+  const [selectedDusun, setSelectedDusun] = useState<string>('all');
 
   const fetchMembers = async () => {
     try {
@@ -103,6 +107,45 @@ export default function HomePage() {
     setUser(null);
   };
 
+  const handleImportSuccess = (imported: Person[], mode: 'merge' | 'replace') => {
+    if (mode === 'replace') {
+      localStorage.setItem('silsilah_custom_members', JSON.stringify(imported));
+      localStorage.removeItem('silsilah_edited_members');
+      localStorage.removeItem('silsilah_deleted_members');
+      setMembers(imported);
+    } else {
+      // Merge
+      const customRaw = localStorage.getItem('silsilah_custom_members');
+      let currentCustom: Person[] = [];
+      try {
+        currentCustom = customRaw ? JSON.parse(customRaw) : [];
+      } catch (e) {
+        currentCustom = [];
+      }
+
+      const importedMap = new Map<string, Person>();
+      imported.forEach((m) => importedMap.set(m.id, m));
+
+      // Update existing custom or add new
+      const updatedCustom = currentCustom.map((m) => {
+        if (importedMap.has(m.id)) {
+          const matched = importedMap.get(m.id)!;
+          importedMap.delete(m.id);
+          return matched;
+        }
+        return m;
+      });
+
+      // Add remaining imported
+      importedMap.forEach((m) => {
+        updatedCustom.push(m);
+      });
+
+      localStorage.setItem('silsilah_custom_members', JSON.stringify(updatedCustom));
+      fetchMembers();
+    }
+  };
+
   // Group members by Clan / Marga
   const clansSummary = useMemo(() => {
     const clanMap: { [key: string]: Person[] } = {};
@@ -128,44 +171,62 @@ export default function HomePage() {
     return Array.from(set).sort();
   }, [members]);
 
+  const uniqueDusuns = useMemo(() => {
+    const set = new Set<string>();
+    members.forEach((m) => {
+      if (m.dusun?.trim()) set.add(m.dusun.trim());
+      else if (m.address?.toLowerCase().includes('dusun 1') || m.address?.toLowerCase().includes('dusun i')) set.add('Dusun 1');
+      else if (m.address?.toLowerCase().includes('dusun 2') || m.address?.toLowerCase().includes('dusun ii')) set.add('Dusun 2');
+      else if (m.address?.toLowerCase().includes('dusun 3') || m.address?.toLowerCase().includes('dusun iii')) set.add('Dusun 3');
+    });
+    return Array.from(set).sort();
+  }, [members]);
+
   // Filtered members for Directory and Tree
   const filteredMembers = useMemo(() => {
-    if (selectedClan === 'all') {
-      return members.filter((m) => {
+    let list = members;
+
+    // Filter Marga
+    if (selectedClan !== 'all') {
+      const clanMembers = list.filter((m) => m.clan?.trim() === selectedClan);
+      const includedIds = new Set<string>(clanMembers.map((m) => m.id));
+
+      clanMembers.forEach((m) => {
+        if (m.spouseId) includedIds.add(m.spouseId);
+        const partner = list.find((other) => other.spouseId === m.id);
+        if (partner) includedIds.add(partner.id);
+      });
+
+      list = list.filter((m) => includedIds.has(m.id));
+    }
+
+    // Filter Dusun
+    if (selectedDusun !== 'all') {
+      list = list.filter((m) => {
+        if (m.dusun && m.dusun.toLowerCase().includes(selectedDusun.toLowerCase())) return true;
+        if (m.address && m.address.toLowerCase().includes(selectedDusun.toLowerCase())) return true;
+        return false;
+      });
+    }
+
+    // Filter Search Query
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      list = list.filter((m) => {
         return (
-          m.fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          (m.callName && m.callName.toLowerCase().includes(searchQuery.toLowerCase())) ||
-          (m.clan && m.clan.toLowerCase().includes(searchQuery.toLowerCase())) ||
-          (m.occupation && m.occupation.toLowerCase().includes(searchQuery.toLowerCase())) ||
-          (m.address && m.address.toLowerCase().includes(searchQuery.toLowerCase()))
+          m.fullName.toLowerCase().includes(q) ||
+          (m.callName && m.callName.toLowerCase().includes(q)) ||
+          (m.clan && m.clan.toLowerCase().includes(q)) ||
+          (m.dusun && m.dusun.toLowerCase().includes(q)) ||
+          (m.nik && m.nik.includes(q)) ||
+          (m.occupation && m.occupation.toLowerCase().includes(q)) ||
+          (m.address && m.address.toLowerCase().includes(q))
         );
       });
     }
 
-    // Jika filter marga aktif (misal Fam Tombo):
-    // 1. Ambil anggota yang marganya cocok
-    // 2. SERTA sertakan pasangan mereka agar bagan pohon silsilah tetap utuh dan menampilkan relasi suami-istri!
-    const clanMembers = members.filter((m) => m.clan?.trim() === selectedClan);
-    const includedIds = new Set<string>(clanMembers.map((m) => m.id));
-
-    clanMembers.forEach((m) => {
-      if (m.spouseId) includedIds.add(m.spouseId);
-      const partner = members.find((other) => other.spouseId === m.id);
-      if (partner) includedIds.add(partner.id);
-    });
-
-    return members.filter((m) => {
-      const isIncluded = includedIds.has(m.id);
-      const matchesSearch =
-        m.fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (m.callName && m.callName.toLowerCase().includes(searchQuery.toLowerCase())) ||
-        (m.clan && m.clan.toLowerCase().includes(searchQuery.toLowerCase())) ||
-        (m.occupation && m.occupation.toLowerCase().includes(searchQuery.toLowerCase())) ||
-        (m.address && m.address.toLowerCase().includes(searchQuery.toLowerCase()));
-
-      return isIncluded && matchesSearch;
-    });
-  }, [members, searchQuery, selectedClan]);
+    return list;
+  }, [members, searchQuery, selectedClan, selectedDusun]);
 
   return (
     <div className="min-h-screen flex flex-col bg-[#F8FAFC]">
@@ -190,9 +251,18 @@ export default function HomePage() {
           </div>
 
           {/* User Auth Info / Actions */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <button
+              onClick={() => setIsExcelOpen(true)}
+              className="px-3 py-2 rounded-xl border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-xs font-semibold shadow-xs transition flex items-center gap-1.5"
+              title="Import / Export Excel Ribuan Warga"
+            >
+              <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
+              <span className="hidden md:inline">Kelola Excel</span>
+            </button>
+
             {user ? (
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 sm:gap-3">
                 <div className="hidden sm:flex flex-col text-right">
                   <span className="text-xs font-bold text-slate-800">{user.name}</span>
                   <span className="text-[10px] text-emerald-600 font-medium">{user.role}</span>
@@ -307,6 +377,23 @@ export default function HomePage() {
 
             {/* Filters & Search */}
             <div className="flex flex-wrap items-center gap-3">
+              {/* Dusun Filter */}
+              {uniqueDusuns.length > 0 && (
+                <div className="relative">
+                  <select
+                    value={selectedDusun}
+                    onChange={(e) => setSelectedDusun(e.target.value)}
+                    className="pl-3 pr-8 py-2 text-xs font-medium rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-sm appearance-none cursor-pointer text-slate-700"
+                  >
+                    <option value="all">Semua Dusun / Wilayah</option>
+                    {uniqueDusuns.map((d) => (
+                      <option key={d} value={d}>{d}</option>
+                    ))}
+                  </select>
+                  <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                </div>
+              )}
+
               {/* Clan Quick Filter */}
               <div className="relative">
                 <select
@@ -327,7 +414,7 @@ export default function HomePage() {
                 <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input
                   type="text"
-                  placeholder="Cari nama, marga, alamat..."
+                  placeholder="Cari nama, NIK, marga, dusun..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full pl-9 pr-4 py-2 text-xs rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-sm"
@@ -612,6 +699,13 @@ export default function HomePage() {
             setSelectedPerson(null);
           }
         }}
+      />
+
+      <ExcelModal
+        isOpen={isExcelOpen}
+        onClose={() => setIsExcelOpen(false)}
+        members={members}
+        onImportSuccess={handleImportSuccess}
       />
     </div>
   );

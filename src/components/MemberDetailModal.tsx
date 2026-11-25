@@ -108,10 +108,20 @@ export default function MemberDetailModal({ person, onClose, allMembers, onSelec
               <div className="flex items-center gap-2.5 p-2.5 rounded-xl bg-slate-50/70 border border-slate-100">
                 <MapPin className="w-4 h-4 text-emerald-600" />
                 <div>
-                  <div className="text-[11px] text-slate-400 font-medium">Alamat Domisili</div>
-                  <div className="font-semibold text-slate-700">{person.address || 'Desa Lungkap'}</div>
+                  <div className="text-[11px] text-slate-400 font-medium">Wilayah / Dusun</div>
+                  <div className="font-semibold text-slate-700">{person.dusun || person.address || 'Desa Lungkap'}</div>
                 </div>
               </div>
+
+              {person.nik && (
+                <div className="flex items-center gap-2.5 p-2.5 rounded-xl bg-slate-50/70 border border-slate-100">
+                  <Shield className="w-4 h-4 text-emerald-600" />
+                  <div>
+                    <div className="text-[11px] text-slate-400 font-medium">NIK Warga</div>
+                    <div className="font-semibold text-slate-700 font-mono text-xs">{person.nik}</div>
+                  </div>
+                </div>
+              )}
 
               <div className="flex items-center gap-2.5 p-2.5 rounded-xl bg-slate-50/70 border border-slate-100">
                 <Phone className="w-4 h-4 text-emerald-600" />

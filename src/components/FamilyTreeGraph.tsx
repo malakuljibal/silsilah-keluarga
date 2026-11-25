@@ -19,7 +19,20 @@ interface TreeNode {
 }
 
 export default function FamilyTreeGraph({ members, onSelectMember, selectedMemberId }: FamilyTreeGraphProps) {
-  // Bangun struktur pohon (Tree Structure) hierarkis murni tanpa wadah berpetak/kolam
+  const [collapsedNodes, setCollapsedNodes] = React.useState<Set<string>>(new Set());
+
+  const toggleCollapse = (nodeId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setCollapsedNodes((prev) => {
+      const next = new Set(prev);
+      if (next.has(nodeId)) {
+        next.delete(nodeId);
+      } else {
+        next.add(nodeId);
+      }
+      return next;
+    });
+  };
   const { rootNodes, unlinkedMembers } = useMemo(() => {
     const memberMap = new Map<string, Person>(members.map((m) => [m.id, m]));
     const childIdsSet = new Set<string>();
@@ -218,6 +231,7 @@ export default function FamilyTreeGraph({ members, onSelectMember, selectedMembe
   // Komponen rekursif Bagan Pohon Bergaris Ortogonal
   const renderBranch = (node: TreeNode) => {
     const hasChildren = node.children && node.children.length > 0;
+    const isCollapsed = collapsedNodes.has(node.person.id);
 
     // Cek nama pasangan jika dia menikah ke orang lain
     const spId = node.person.spouseId || members.find((m) => m.spouseId === node.person.id)?.id;
@@ -247,10 +261,21 @@ export default function FamilyTreeGraph({ members, onSelectMember, selectedMembe
               })}
             </>
           )}
+
+          {/* Tombol Collapse / Expand Keturunan untuk skala ribuan orang */}
+          {hasChildren && (
+            <button
+              onClick={(e) => toggleCollapse(node.person.id, e)}
+              className="absolute -bottom-3 left-1/2 -translate-x-1/2 z-30 px-2 py-0.5 bg-white border border-slate-300 rounded-full text-[10px] font-bold text-slate-600 shadow-xs hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-300 transition flex items-center gap-1 cursor-pointer"
+              title={isCollapsed ? 'Tampilkan anak' : 'Sembunyikan anak'}
+            >
+              {isCollapsed ? `+ ${node.children.length} Anak` : '−'}
+            </button>
+          )}
         </div>
 
         {/* Garis Bagan ke Bawah menuju Anak-Anak */}
-        {hasChildren && (
+        {hasChildren && !isCollapsed && (
           <div className="flex flex-col items-center w-full">
             {/* Garis vertikal batang utama dari orang tua */}
             <div className="w-0.5 h-6 bg-slate-300" />

@@ -2,7 +2,9 @@ export interface Person {
   id: string;
   fullName: string;
   callName: string;
-  clan?: string; // Marga / Rumpun Fam
+  clan?: string; // Marga / Rumpun Fam (Tombo, Lungkap, dll)
+  dusun?: string; // Dusun 1, Dusun 2, RT/RW
+  nik?: string; // NIK / No. KTP (opsional arsip desa)
   gender: 'male' | 'female';
   birthYear: number;
   deathYear?: number | null;
@@ -15,4 +17,5 @@ export interface Person {
   parents: string[];
   spouseId?: string | null;
   children: string[];
+  updatedAt?: string;
 }

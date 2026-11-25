@@ -23,6 +23,8 @@ export default function AddMemberModal({ isOpen, onClose, onSuccess, allMembers,
     photo: '',
     occupation: '',
     address: 'Desa Lungkap',
+    dusun: 'Dusun 1',
+    nik: '',
     bio: '',
     phone: '',
     generation: 3,
@@ -61,6 +63,8 @@ export default function AddMemberModal({ isOpen, onClose, onSuccess, allMembers,
           : 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=200&auto=format&fit=crop&q=80'),
         occupation: formData.occupation,
         address: formData.address,
+        dusun: formData.dusun,
+        nik: formData.nik,
         bio: formData.bio,
         phone: formData.phone,
         generation: Number(formData.generation) || 1,
@@ -297,6 +301,32 @@ export default function AddMemberModal({ isOpen, onClose, onSuccess, allMembers,
                 value={formData.phone}
                 onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                 placeholder="misal: 081234567890"
+                className="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50/50"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Dusun / Lingkungan (Desa Lungkap)</label>
+              <select
+                value={formData.dusun}
+                onChange={(e) => setFormData({ ...formData, dusun: e.target.value })}
+                className="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50/50"
+              >
+                <option value="Dusun 1">Dusun 1</option>
+                <option value="Dusun 2">Dusun 2</option>
+                <option value="Dusun 3">Dusun 3</option>
+                <option value="Luar Desa">Luar Desa / Perantauan</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">NIK (Nomor Induk Kependudukan - Opsional)</label>
+              <input
+                type="text"
+                value={formData.nik}
+                onChange={(e) => setFormData({ ...formData, nik: e.target.value })}
+                placeholder="16 digit NIK untuk validasi arsip"
                 className="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50/50"
               />
             </div>

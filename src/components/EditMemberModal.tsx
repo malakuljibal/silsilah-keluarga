@@ -31,6 +31,8 @@ export default function EditMemberModal({
     photo: '',
     occupation: '',
     address: 'Desa Lungkap',
+    dusun: 'Dusun 1',
+    nik: '',
     bio: '',
     phone: '',
     generation: 1,
@@ -51,6 +53,8 @@ export default function EditMemberModal({
         photo: person.photo || '',
         occupation: person.occupation || '',
         address: person.address || 'Desa Lungkap',
+        dusun: person.dusun || (person.address?.toLowerCase().includes('dusun 2') || person.address?.toLowerCase().includes('dusun ii') ? 'Dusun 2' : person.address?.toLowerCase().includes('dusun 3') || person.address?.toLowerCase().includes('dusun iii') ? 'Dusun 3' : 'Dusun 1'),
+        nik: person.nik || '',
         bio: person.bio || '',
         phone: person.phone || '',
         generation: person.generation || 1,
@@ -80,6 +84,8 @@ export default function EditMemberModal({
           : 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=200&auto=format&fit=crop&q=80'),
         occupation: formData.occupation,
         address: formData.address,
+        dusun: formData.dusun,
+        nik: formData.nik,
         bio: formData.bio,
         phone: formData.phone,
         generation: Number(formData.generation) || 1,
@@ -300,6 +306,32 @@ export default function EditMemberModal({
                 value={formData.phone}
                 onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                 placeholder="081234567890"
+                className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Dusun / Wilayah (Desa Lungkap)</label>
+              <select
+                value={formData.dusun}
+                onChange={(e) => setFormData({ ...formData, dusun: e.target.value })}
+                className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 bg-white"
+              >
+                <option value="Dusun 1">Dusun 1</option>
+                <option value="Dusun 2">Dusun 2</option>
+                <option value="Dusun 3">Dusun 3</option>
+                <option value="Luar Desa">Luar Desa / Perantauan</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">NIK (Nomor Induk Kependudukan - Opsional)</label>
+              <input
+                type="text"
+                value={formData.nik}
+                onChange={(e) => setFormData({ ...formData, nik: e.target.value })}
+                placeholder="16 digit NIK arsip"
                 className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
               />
             </div>
