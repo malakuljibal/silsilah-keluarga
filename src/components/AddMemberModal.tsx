@@ -7,7 +7,7 @@ import { Person } from '@/types/family';
 interface AddMemberModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess: () => void;
+  onSuccess: (newPerson?: Person) => void;
   allMembers: Person[];
 }
 
@@ -37,29 +37,55 @@ export default function AddMemberModal({ isOpen, onClose, onSuccess, allMembers 
     setLoading(true);
 
     try {
-      const payload = {
-        ...formData,
+      const newId = String(Date.now());
+      const newPerson: Person = {
+        id: newId,
+        fullName: formData.fullName,
+        callName: formData.callName,
+        clan: formData.clan,
+        gender: formData.gender as 'male' | 'female',
+        birthYear: Number(formData.birthYear) || 1990,
         deathYear: formData.deathYear ? Number(formData.deathYear) : null,
         photo: formData.photo || (formData.gender === 'male'
           ? 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&auto=format&fit=crop&q=80'
           : 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=200&auto=format&fit=crop&q=80'),
+        occupation: formData.occupation,
+        address: formData.address,
+        bio: formData.bio,
+        phone: formData.phone,
+        parents: formData.parents || [],
+        spouseId: formData.spouseId || undefined,
+        children: [],
       };
 
-      const res = await fetch('/api/members', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
+      // Try API first, fallback to client-side localStorage on static export
+      try {
+        const res = await fetch('/silsilah/api/members', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(newPerson),
+        });
 
-      if (res.ok) {
-        onSuccess();
-        onClose();
-      } else {
-        alert('Gagal menambahkan anggota keluarga.');
+        if (res.ok) {
+          const created = await res.json();
+          onSuccess(created);
+          onClose();
+          return;
+        }
+      } catch (apiErr) {
+        console.warn('API post not available on static host, using local storage fallback', apiErr);
       }
+
+      // Fallback: save to localStorage
+      const localAdded = JSON.parse(localStorage.getItem('silsilah_custom_members') || '[]');
+      localAdded.push(newPerson);
+      localStorage.setItem('silsilah_custom_members', JSON.stringify(localAdded));
+
+      onSuccess(newPerson);
+      onClose();
     } catch (err) {
       console.error(err);
-      alert('Terjadi kesalahan jaringan.');
+      alert('Terjadi kesalahan saat menyimpan data anggota.');
     } finally {
       setLoading(false);
     }

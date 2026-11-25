@@ -28,11 +28,26 @@ export default function HomePage() {
   const fetchMembers = async () => {
     try {
       setLoading(true);
-      const res = await fetch('/api/members');
+      const res = await fetch('/silsilah/api/members');
+      let baseData: Person[] = [];
       if (res.ok) {
-        const data = await res.json();
-        setMembers(data);
+        baseData = await res.json();
       }
+
+      // Check localStorage for client-added members
+      const customRaw = typeof window !== 'undefined' ? localStorage.getItem('silsilah_custom_members') : null;
+      if (customRaw) {
+        try {
+          const customMembers: Person[] = JSON.parse(customRaw);
+          const baseIds = new Set(baseData.map((m) => m.id));
+          const additions = customMembers.filter((m) => !baseIds.has(m.id));
+          baseData = [...baseData, ...additions];
+        } catch (err) {
+          console.error(err);
+        }
+      }
+
+      setMembers(baseData);
     } catch (e) {
       console.error(e);
     } finally {
@@ -476,7 +491,17 @@ export default function HomePage() {
       <AddMemberModal
         isOpen={isAddOpen}
         onClose={() => setIsAddOpen(false)}
-        onSuccess={fetchMembers}
+        onSuccess={(newPerson) => {
+          if (newPerson) {
+            setMembers((prev) => {
+              const exists = prev.some((p) => p.id === newPerson.id);
+              if (exists) return prev;
+              return [...prev, newPerson];
+            });
+          } else {
+            fetchMembers();
+          }
+        }}
         allMembers={members}
       />
 
