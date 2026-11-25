@@ -1,9 +1,8 @@
 import { Person } from '@/types/family';
 
 export function parseCsvToMembers(csvText: string): Person[] {
-  // Parsing CSV baris per baris dengan penanganan koma di dalam tanda kutip
-  const lines = csvText.split(/\r?\n/).filter((l) => l.trim().length > 0);
-  if (lines.length < 2) return [];
+  const rawLines = csvText.split(/\r?\n/).filter((l) => l.trim().length > 0);
+  if (rawLines.length === 0) return [];
 
   const parseLine = (text: string): string[] => {
     const result: string[] = [];
@@ -29,20 +28,65 @@ export function parseCsvToMembers(csvText: string): Person[] {
     return result;
   };
 
-  const headers = parseLine(lines[0]).map((h) => h.toLowerCase().replace(/[^a-z0-9]/g, ''));
+  // 1. Cari baris header tabel utama (yang mengandung "nama lengkap" atau "nama")
+  let headerIndex = -1;
+  let headers: string[] = [];
 
-  const parsedMembers: Person[] = [];
+  for (let i = 0; i < rawLines.length; i++) {
+    const cols = parseLine(rawLines[i]);
+    const cleaned = cols.map((c) => c.toLowerCase().replace(/[^a-z0-9]/g, ''));
+    if (
+      cleaned.includes('namalengkap') ||
+      (cleaned.includes('nama') &&
+        (cleaned.includes('ayah') ||
+          cleaned.includes('fammarga') ||
+          cleaned.includes('marga') ||
+          cleaned.includes('pasangan')))
+    ) {
+      headerIndex = i;
+      headers = cleaned;
+      break;
+    }
+  }
 
-  for (let i = 1; i < lines.length; i++) {
-    const cols = parseLine(lines[i]);
+  // Jika tidak ditemukan baris ber-header nama, gunakan baris pertama sebagai fallback
+  if (headerIndex === -1) {
+    headerIndex = 0;
+    headers = parseLine(rawLines[0]).map((c) => c.toLowerCase().replace(/[^a-z0-9]/g, ''));
+  }
+
+  interface RawRow {
+    rawName: string;
+    callName: string;
+    clan: string;
+    spouseName: string;
+    fatherName: string;
+    motherName: string;
+    childrenNames: string[];
+    gender?: 'male' | 'female';
+    dusun?: string;
+    nik?: string;
+    birthYear?: number;
+    deathYear?: number | null;
+    generation?: number;
+    occupation?: string;
+    phone?: string;
+    address?: string;
+    bio?: string;
+    id?: string;
+  }
+
+  const rawRows: RawRow[] = [];
+
+  for (let i = headerIndex + 1; i < rawLines.length; i++) {
+    const cols = parseLine(rawLines[i]);
     if (!cols || cols.length === 0) continue;
 
     const rowObj: Record<string, string> = {};
     headers.forEach((h, idx) => {
-      rowObj[h] = cols[idx] !== undefined ? cols[idx] : '';
+      if (h) rowObj[h] = cols[idx] !== undefined ? cols[idx] : '';
     });
 
-    // Cari value berdasarkan kemungkinan nama header
     const getVal = (...keys: string[]): string => {
       for (const k of keys) {
         const cleanK = k.toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -53,47 +97,63 @@ export function parseCsvToMembers(csvText: string): Person[] {
       return '';
     };
 
-    const id = getVal('id', 'kode');
-    const fullName = getVal('namalengkap', 'nama', 'fullname');
-    if (!id || !fullName) continue;
+    const rawName = getVal('namalengkap', 'nama', 'fullname');
+    if (!rawName) continue;
 
-    const callName = getVal('namapanggilan', 'panggilan', 'callname') || fullName.split(' ')[0];
-    const rawGender = getVal('jeniskelamin', 'gender', 'jk', 'kelamin').toUpperCase();
-    const gender: 'male' | 'female' = rawGender.startsWith('P') || rawGender.startsWith('F') || rawGender.includes('PEREMPUAN') ? 'female' : 'male';
-    const clan = getVal('margafam', 'marga', 'fam', 'clan') || undefined;
-    const dusun = getVal('dusun', 'lingkungan', 'rt', 'rw') || undefined;
-    const nik = getVal('nik', 'ktp', 'nomorinduk') || undefined;
+    const callName = getVal('namapanggilan', 'panggilan', 'callname') || rawName.split(' ')[0];
+    const clan = getVal('fammarga', 'marga', 'fam', 'clan');
+    const spouseName = getVal('pasangan', 'suami', 'istri', 'namapasangan');
+    const fatherName = getVal('ayah', 'namaayah', 'bapak');
+    const motherName = getVal('ibu', 'namaibu');
+    const rawChildren = getVal('anak', 'namaanak', 'children');
+    const childrenNames = rawChildren
+      ? rawChildren.split(/[,;\/]/).map((s) => s.trim()).filter(Boolean)
+      : [];
 
-    const birthYear = parseInt(getVal('tahunlahir', 'lahir', 'birthyear'), 10) || 1990;
+    const explicitId = getVal('id', 'kode');
+    const explicitGender = getVal('jeniskelamin', 'gender', 'jk', 'kelamin').toUpperCase();
+    let gender: 'male' | 'female' | undefined = undefined;
+    if (
+      explicitGender.startsWith('P') ||
+      explicitGender.startsWith('F') ||
+      explicitGender.includes('PEREMPUAN') ||
+      explicitGender.includes('WANITA')
+    ) {
+      gender = 'female';
+    } else if (
+      explicitGender.startsWith('L') ||
+      explicitGender.startsWith('M') ||
+      explicitGender.includes('LAKI') ||
+      explicitGender.includes('PRIA')
+    ) {
+      gender = 'male';
+    }
+
+    const dusun = getVal('dusun', 'lingkungan', 'rt', 'rw');
+    const nik = getVal('nik', 'ktp', 'nomorinduk');
+    const birthYearVal = getVal('tahunlahir', 'lahir', 'birthyear');
+    const birthYear = birthYearVal ? parseInt(birthYearVal, 10) : undefined;
     const deathYearVal = getVal('tahunwafat', 'wafat', 'meninggal', 'deathyear');
     const deathYear = deathYearVal ? parseInt(deathYearVal, 10) : null;
     const genVal = getVal('generasi', 'gen', 'generation');
     const generation = genVal ? parseInt(genVal, 10) : undefined;
 
-    const parseList = (val: string): string[] => {
-      if (!val) return [];
-      return val
-        .split(/[,;\/]/)
-        .map((s) => s.trim())
-        .filter(Boolean);
-    };
+    const occupation = getVal('pekerjaan', 'profesi', 'occupation');
+    const phone = getVal('nohp', 'hp', 'telepon', 'phone', 'wa');
+    const address = getVal('alamat', 'domisili', 'address');
+    const bio = getVal('catatan', 'bio', 'keterangan');
 
-    const parents = parseList(getVal('idayahibu', 'orangtua', 'parents', 'ortu'));
-    const spouseId = getVal('idpasangan', 'pasangan', 'suami', 'istri', 'spouseid') || null;
-    const children = parseList(getVal('idanak', 'anak', 'children'));
-    const occupation = getVal('pekerjaan', 'profesi', 'occupation') || undefined;
-    const phone = getVal('nohp', 'hp', 'telepon', 'phone', 'wa') || undefined;
-    const address = getVal('alamat', 'domisili', 'address') || undefined;
-    const bio = getVal('catatan', 'bio', 'keterangan') || undefined;
-
-    parsedMembers.push({
-      id,
-      fullName,
+    rawRows.push({
+      rawName,
       callName,
       clan,
+      spouseName,
+      fatherName,
+      motherName,
+      childrenNames,
+      gender,
       dusun,
       nik,
-      gender,
       birthYear,
       deathYear,
       generation,
@@ -101,12 +161,105 @@ export function parseCsvToMembers(csvText: string): Person[] {
       phone,
       address,
       bio,
-      parents,
-      spouseId,
-      children,
-      updatedAt: new Date().toISOString(),
+      id: explicitId,
     });
   }
 
-  return parsedMembers;
+  // 2. Resolve nama menjadi ID dan hubungkan relasi Ayah, Ibu, Pasangan, & Anak
+  const nameToIdMap = new Map<string, string>();
+  const slugify = (name: string) => name.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+  rawRows.forEach((r, idx) => {
+    const assignedId = r.id || `LK-${String(idx + 1).padStart(3, '0')}`;
+    r.id = assignedId;
+    nameToIdMap.set(slugify(r.rawName), assignedId);
+    if (r.callName) {
+      nameToIdMap.set(slugify(r.callName), assignedId);
+    }
+  });
+
+  const members: Person[] = [];
+
+  rawRows.forEach((r, idx) => {
+    const parentsIds: string[] = [];
+    if (r.fatherName) {
+      const fId = nameToIdMap.get(slugify(r.fatherName));
+      if (fId) parentsIds.push(fId);
+    }
+    if (r.motherName) {
+      const mId = nameToIdMap.get(slugify(r.motherName));
+      if (mId) parentsIds.push(mId);
+    }
+
+    let resolvedSpouseId: string | null = null;
+    if (r.spouseName) {
+      resolvedSpouseId = nameToIdMap.get(slugify(r.spouseName)) || null;
+    }
+
+    const resolvedChildrenIds: string[] = [];
+    r.childrenNames.forEach((cName) => {
+      const cId = nameToIdMap.get(slugify(cName));
+      if (cId) resolvedChildrenIds.push(cId);
+    });
+
+    // Tebak gender jika belum terdefinisi secara eksplisit
+    let finalGender: 'male' | 'female' = r.gender || 'male';
+    if (!r.gender) {
+      const isMother = rawRows.some((other) => slugify(other.motherName) === slugify(r.rawName));
+      const femaleKeywords = ['ibu', 'siti', 'dewi', 'ratna', 'nur', 'fatimah', 'aminah', 'sari', 'ani', 'yanti'];
+      if (isMother || femaleKeywords.some((w) => r.rawName.toLowerCase().includes(w))) {
+        finalGender = 'female';
+      }
+    }
+
+    members.push({
+      id: r.id!,
+      fullName: r.rawName,
+      callName: r.callName,
+      clan: r.clan || undefined,
+      dusun: r.dusun || 'Dusun 1',
+      nik: r.nik || undefined,
+      gender: finalGender,
+      birthYear: r.birthYear || 1960 + idx * 5,
+      deathYear: r.deathYear,
+      generation: r.generation || (parentsIds.length > 0 ? 2 : 1),
+      occupation: r.occupation || undefined,
+      phone: r.phone || undefined,
+      address: r.address || 'Desa Lungkap',
+      bio: r.bio || undefined,
+      parents: parentsIds,
+      spouseId: resolvedSpouseId,
+      children: resolvedChildrenIds,
+      updatedAt: new Date().toISOString(),
+    });
+  });
+
+  // Cross-link relasi dua arah (Orang Tua <-> Anak & Pasangan)
+  members.forEach((m) => {
+    if (m.children && m.children.length > 0) {
+      m.children.forEach((cId) => {
+        const child = members.find((x) => x.id === cId);
+        if (child && !child.parents.includes(m.id)) {
+          child.parents.push(m.id);
+        }
+      });
+    }
+    if (m.parents && m.parents.length > 0) {
+      m.parents.forEach((pId) => {
+        const parent = members.find((x) => x.id === pId);
+        if (parent && (!parent.children || !parent.children.includes(m.id))) {
+          if (!parent.children) parent.children = [];
+          parent.children.push(m.id);
+        }
+      });
+    }
+    if (m.spouseId) {
+      const partner = members.find((x) => x.id === m.spouseId);
+      if (partner && !partner.spouseId) {
+        partner.spouseId = m.id;
+      }
+    }
+  });
+
+  return members;
 }
