@@ -3,7 +3,8 @@
 import React, { useState, useRef } from 'react';
 import { Person } from '@/types/family';
 import { downloadExcelTemplate, exportFamilyToExcel, parseExcelToMembers } from '@/utils/excelFamily';
-import { Download, Upload, FileSpreadsheet, X, AlertCircle, CheckCircle2, Database, RefreshCw } from 'lucide-react';
+import { parseCsvToMembers } from '@/utils/csvFamily';
+import { Download, Upload, FileSpreadsheet, X, AlertCircle, CheckCircle2, Database, RefreshCw, Link as LinkIcon, CloudDownload } from 'lucide-react';
 
 interface ExcelModalProps {
   isOpen: boolean;
@@ -17,6 +18,8 @@ export default function ExcelModal({ isOpen, onClose, members, onImportSuccess }
   const [previewData, setPreviewData] = useState<Person[]>([]);
   const [importMode, setImportMode] = useState<'merge' | 'replace'>('merge');
   const [isLoading, setIsLoading] = useState(false);
+  const [isSyncingSheet, setIsSyncingSheet] = useState(false);
+  const [sheetUrl, setSheetUrl] = useState('https://docs.google.com/spreadsheets/d/11GysNSh8X4BfBMc1KkOpkaNqG0IzLt_mKPQzJl9RtCQ/edit?gid=0#gid=0');
   const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -58,6 +61,49 @@ export default function ExcelModal({ isOpen, onClose, members, onImportSuccess }
     setTimeout(() => {
       onClose();
     }, 1200);
+  };
+
+  const handleSyncGoogleSheet = async () => {
+    setIsSyncingSheet(true);
+    setStatusMessage(null);
+    try {
+      // Extract Google Sheet ID and GID
+      const idMatch = sheetUrl.match(/\/d\/([a-zA-Z0-9-_]+)/);
+      const gidMatch = sheetUrl.match(/gid=([0-9]+)/);
+      const docId = idMatch ? idMatch[1] : '11GysNSh8X4BfBMc1KkOpkaNqG0IzLt_mKPQzJl9RtCQ';
+      const gid = gidMatch ? gidMatch[1] : '0';
+
+      const exportCsvUrl = `https://docs.google.com/spreadsheets/d/${docId}/export?format=csv&gid=${gid}`;
+      
+      const response = await fetch(exportCsvUrl);
+      if (!response.ok) {
+        throw new Error('Gagal mengambil file CSV. Pastikan akses Google Sheet diubah ke "Anyone with the link can view".');
+      }
+
+      const csvText = await response.text();
+      if (csvText.includes('<!DOCTYPE html>') || csvText.includes('Sign in')) {
+        throw new Error('Google Sheet terkunci (private). Ubah akses link Google Sheet menjadi "Siapa saja yang memiliki link dapat melihat" (Anyone with the link).');
+      }
+
+      const parsed = parseCsvToMembers(csvText);
+      if (parsed.length === 0) {
+        throw new Error('File Google Sheet kosong atau header kolom tidak cocok. Pastikan menggunakan format template.');
+      }
+
+      setPreviewData(parsed);
+      setStatusMessage({
+        type: 'success',
+        text: `Berhasil sinkronisasi ${parsed.length} data langsung dari Google Sheet! Klik tombol konfirmasi di bawah untuk simpan.`,
+      });
+    } catch (err: any) {
+      console.error(err);
+      setStatusMessage({
+        type: 'error',
+        text: err.message || 'Terjadi kesalahan saat sinkronisasi Google Sheet.',
+      });
+    } finally {
+      setIsSyncingSheet(false);
+    }
   };
 
   return (
@@ -123,27 +169,68 @@ export default function ExcelModal({ isOpen, onClose, members, onImportSuccess }
             </div>
           </div>
 
-          {/* Section 2: Upload Excel File */}
-          <div className="p-5 rounded-xl border-2 border-dashed border-slate-200 hover:border-emerald-400 transition-colors text-center bg-slate-50/30">
-            <input
-              type="file"
-              ref={fileInputRef}
-              accept=".xlsx, .xls, .csv"
-              onChange={handleFileChange}
-              className="hidden"
-            />
-            <div className="flex flex-col items-center">
-              <Upload className="w-8 h-8 text-slate-400 mb-2" />
-              <p className="text-sm font-medium text-slate-700 mb-1">Upload File Data Silsilah Excel</p>
-              <p className="text-xs text-slate-400 mb-3">Mendukung file .xlsx, .xls, atau .csv skala ribuan baris</p>
+          {/* Section 2: Upload Excel File & Google Sheet Live Sync */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Box A: Google Sheet Sync */}
+            <div className="p-4 rounded-xl border border-emerald-200 bg-emerald-50/40 flex flex-col justify-between">
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="p-1.5 bg-emerald-100 text-emerald-700 rounded-lg">
+                    <CloudDownload className="w-4 h-4" />
+                  </div>
+                  <h4 className="font-bold text-slate-800 text-xs">Sync Langsung Google Sheets</h4>
+                </div>
+                <p className="text-[11px] text-slate-500 mb-2">
+                  Tarik data realtime dari tautan Google Docs spreadsheet Anda tanpa perlu unduh file.
+                </p>
+                <input
+                  type="text"
+                  value={sheetUrl}
+                  onChange={(e) => setSheetUrl(e.target.value)}
+                  placeholder="https://docs.google.com/spreadsheets/d/..."
+                  className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 bg-white mb-2 focus:ring-1 focus:ring-emerald-500 font-mono text-slate-700"
+                />
+              </div>
+              <button
+                type="button"
+                disabled={isSyncingSheet}
+                onClick={handleSyncGoogleSheet}
+                className="w-full py-2 px-3 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition shadow-xs flex items-center justify-center gap-2"
+              >
+                {isSyncingSheet ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" /> Menghubungkan Google Sheet...
+                  </>
+                ) : (
+                  <>
+                    <CloudDownload className="w-3.5 h-3.5" /> Tarik Data Google Sheet
+                  </>
+                )}
+              </button>
+            </div>
+
+            {/* Box B: Upload Manual Excel File */}
+            <div className="p-4 rounded-xl border-2 border-dashed border-slate-200 hover:border-emerald-400 transition-colors text-center bg-slate-50/30 flex flex-col justify-between">
+              <input
+                type="file"
+                ref={fileInputRef}
+                accept=".xlsx, .xls, .csv"
+                onChange={handleFileChange}
+                className="hidden"
+              />
+              <div className="flex flex-col items-center">
+                <Upload className="w-6 h-6 text-slate-400 mb-1.5" />
+                <p className="text-xs font-semibold text-slate-700 mb-0.5">Upload File .xlsx / .csv</p>
+                <p className="text-[11px] text-slate-400 mb-2">Impor berkas offline dari laptop/HP</p>
+                {file && <p className="text-[11px] text-emerald-600 font-mono mb-2 truncate max-w-[200px]">{file.name}</p>}
+              </div>
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="py-2 px-4 text-xs font-medium bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors shadow-xs"
+                className="w-full py-2 px-3 text-xs font-medium bg-slate-800 text-white rounded-lg hover:bg-slate-900 transition-colors shadow-xs"
               >
-                {file ? 'Ganti File Excel' : 'Pilih File Excel'}
+                {file ? 'Ganti File Excel' : 'Pilih Berkas Excel'}
               </button>
-              {file && <p className="text-xs text-slate-600 mt-2 font-mono">{file.name}</p>}
             </div>
           </div>
 

@@ -254,11 +254,11 @@ export default function HomePage() {
           <div className="flex items-center gap-2 sm:gap-3">
             <button
               onClick={() => setIsExcelOpen(true)}
-              className="px-3 py-2 rounded-xl border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-xs font-semibold shadow-xs transition flex items-center gap-1.5"
-              title="Import / Export Excel Ribuan Warga"
+              className="px-3 py-2 rounded-xl border border-emerald-300 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-xs font-semibold shadow-xs transition flex items-center gap-1.5"
+              title="Sync Google Sheets / Impor Excel"
             >
               <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
-              <span className="hidden md:inline">Kelola Excel</span>
+              <span className="hidden sm:inline">Sync Sheets / Excel</span>
             </button>
 
             {user ? (
