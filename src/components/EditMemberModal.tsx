@@ -33,6 +33,7 @@ export default function EditMemberModal({
     address: 'Desa Lungkap',
     bio: '',
     phone: '',
+    generation: 1,
     parents: [] as string[],
     spouseId: '',
   });
@@ -52,6 +53,7 @@ export default function EditMemberModal({
         address: person.address || 'Desa Lungkap',
         bio: person.bio || '',
         phone: person.phone || '',
+        generation: person.generation || 1,
         parents: person.parents || [],
         spouseId: person.spouseId || '',
       });
@@ -80,6 +82,7 @@ export default function EditMemberModal({
         address: formData.address,
         bio: formData.bio,
         phone: formData.phone,
+        generation: Number(formData.generation) || 1,
         parents: formData.parents || [],
         spouseId: formData.spouseId || undefined,
       };
@@ -226,11 +229,8 @@ export default function EditMemberModal({
                 className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
               />
             </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Tahun Wafat (Kosongkan bila masih hidup)</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Tahun Wafat (Kosong bila hidup)</label>
               <input
                 type="number"
                 value={formData.deathYear}
@@ -238,6 +238,27 @@ export default function EditMemberModal({
                 placeholder="Contoh: 2021"
                 className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
               />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Tingkat Generasi (1 - 9)</label>
+              <select
+                value={formData.generation}
+                onChange={(e) => setFormData({ ...formData, generation: Number(e.target.value) })}
+                className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 bg-white"
+              >
+                <option value="1">Generasi 1 (Leluhur Tertinggi / Pendiri)</option>
+                <option value="2">Generasi 2</option>
+                <option value="3">Generasi 3</option>
+                <option value="4">Generasi 4</option>
+                <option value="5">Generasi 5</option>
+                <option value="6">Generasi 6</option>
+                <option value="7">Generasi 7</option>
+                <option value="8">Generasi 8</option>
+                <option value="9">Generasi 9</option>
+              </select>
             </div>
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">URL Foto Profil</label>

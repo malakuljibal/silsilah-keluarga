@@ -11,7 +11,7 @@ export interface Person {
   address?: string;
   bio?: string;
   phone?: string;
-  generation?: number;
+  generation?: number; // 1 s.d 9 fleksibel
   parents: string[];
   spouseId?: string | null;
   children: string[];

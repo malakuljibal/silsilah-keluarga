@@ -63,6 +63,7 @@ export default function AddMemberModal({ isOpen, onClose, onSuccess, allMembers,
         address: formData.address,
         bio: formData.bio,
         phone: formData.phone,
+        generation: Number(formData.generation) || 1,
         parents: formData.parents || [],
         spouseId: formData.spouseId || undefined,
         children: [],
@@ -210,17 +211,21 @@ export default function AddMemberModal({ isOpen, onClose, onSuccess, allMembers,
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Generasi Ke-</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Tingkat Generasi (1 - 9)</label>
               <select
                 value={formData.generation}
                 onChange={(e) => setFormData({ ...formData, generation: Number(e.target.value) })}
                 className="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50/50"
               >
-                <option value="1">Tingkat 1 (Leluhur / Kakek Nenek)</option>
-                <option value="2">Tingkat 2 (Orang Tua / Paman / Bibi)</option>
-                <option value="3">Tingkat 3 (Anak / Kemenakan)</option>
-                <option value="4">Tingkat 4 (Cucu)</option>
-                <option value="5">Tingkat 5 (Cicit)</option>
+                <option value="1">Generasi 1 (Leluhur Tertinggi / Pendiri)</option>
+                <option value="2">Generasi 2</option>
+                <option value="3">Generasi 3</option>
+                <option value="4">Generasi 4</option>
+                <option value="5">Generasi 5</option>
+                <option value="6">Generasi 6</option>
+                <option value="7">Generasi 7</option>
+                <option value="8">Generasi 8</option>
+                <option value="9">Generasi 9</option>
               </select>
             </div>
             <div>
