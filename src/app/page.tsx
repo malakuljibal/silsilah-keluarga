@@ -130,17 +130,40 @@ export default function HomePage() {
 
   // Filtered members for Directory and Tree
   const filteredMembers = useMemo(() => {
+    if (selectedClan === 'all') {
+      return members.filter((m) => {
+        return (
+          m.fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          (m.callName && m.callName.toLowerCase().includes(searchQuery.toLowerCase())) ||
+          (m.clan && m.clan.toLowerCase().includes(searchQuery.toLowerCase())) ||
+          (m.occupation && m.occupation.toLowerCase().includes(searchQuery.toLowerCase())) ||
+          (m.address && m.address.toLowerCase().includes(searchQuery.toLowerCase()))
+        );
+      });
+    }
+
+    // Jika filter marga aktif (misal Fam Tombo):
+    // 1. Ambil anggota yang marganya cocok
+    // 2. SERTA sertakan pasangan mereka agar bagan pohon silsilah tetap utuh dan menampilkan relasi suami-istri!
+    const clanMembers = members.filter((m) => m.clan?.trim() === selectedClan);
+    const includedIds = new Set<string>(clanMembers.map((m) => m.id));
+
+    clanMembers.forEach((m) => {
+      if (m.spouseId) includedIds.add(m.spouseId);
+      const partner = members.find((other) => other.spouseId === m.id);
+      if (partner) includedIds.add(partner.id);
+    });
+
     return members.filter((m) => {
-      const matchesSearch = 
+      const isIncluded = includedIds.has(m.id);
+      const matchesSearch =
         m.fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
         (m.callName && m.callName.toLowerCase().includes(searchQuery.toLowerCase())) ||
         (m.clan && m.clan.toLowerCase().includes(searchQuery.toLowerCase())) ||
         (m.occupation && m.occupation.toLowerCase().includes(searchQuery.toLowerCase())) ||
         (m.address && m.address.toLowerCase().includes(searchQuery.toLowerCase()));
 
-      const matchesClan = selectedClan === 'all' || (m.clan?.trim() === selectedClan);
-
-      return matchesSearch && matchesClan;
+      return isIncluded && matchesSearch;
     });
   }, [members, searchQuery, selectedClan]);
 

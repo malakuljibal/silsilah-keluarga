@@ -64,9 +64,16 @@ export default function FamilyTreeGraph({ members, onSelectMember, selectedMembe
       const spId = p.spouseId || members.find((m) => m.spouseId === p.id)?.id;
       if (spId) {
         const sp = memberMap.get(spId);
-        if (sp && !visitedNodes.has(sp.id)) {
+        if (sp) {
           spouse = sp;
-          visitedNodes.add(sp.id);
+          // PERUBAHAN PENTING:
+          // Jika pasangannya memiliki orang tua (misal Lin anak dari keluarga Tombo),
+          // JANGAN tandai visitedNodes di sini, agar Lin tetap bisa diproses dan muncul
+          // di cabang keturunan keluarganya sendiri (fam Tombo)!
+          const spouseHasParents = sp.parents && sp.parents.some((pId) => memberMap.has(pId));
+          if (!spouseHasParents) {
+            visitedNodes.add(sp.id);
+          }
           if (p.clan && sp.clan && p.clan.trim().toLowerCase() !== sp.clan.trim().toLowerCase()) {
             isSpouseExternal = true;
             spouseOriginalClan = sp.clan.trim();
@@ -82,6 +89,7 @@ export default function FamilyTreeGraph({ members, onSelectMember, selectedMembe
       const childrenNodes: TreeNode[] = [];
       allChildIds.forEach((cId) => {
         const child = memberMap.get(cId);
+        // Izinkan anak dibangun jika belum divisited atau jika anak adalah spouse dari rantai lain
         if (child && !visitedNodes.has(child.id)) {
           childrenNodes.push(buildNode(child));
         }
@@ -131,7 +139,7 @@ export default function FamilyTreeGraph({ members, onSelectMember, selectedMembe
   // Render kartu anggota bagan
   const renderPersonCard = (
     person: Person,
-    options?: { isSpouse?: boolean; isExternal?: boolean; originalClan?: string }
+    options?: { isSpouse?: boolean; isExternal?: boolean; originalClan?: string; spouseOfName?: string }
   ) => {
     const isSelected = person.id === selectedMemberId;
     const isFemale = person.gender === 'female';
@@ -191,12 +199,18 @@ export default function FamilyTreeGraph({ members, onSelectMember, selectedMembe
           </div>
         </div>
 
-        {person.generation && (
-          <div className="mt-1.5 pt-1 border-t border-slate-100 flex items-center justify-between text-[9px] text-slate-400">
-            <span>Gen {person.generation}</span>
-            {options?.isSpouse && <span className="text-rose-500 font-semibold">Pasangan</span>}
-          </div>
-        )}
+        <div className="mt-1.5 pt-1 border-t border-slate-100 flex items-center justify-between text-[9px] text-slate-400">
+          <span>{person.generation ? `Gen ${person.generation}` : 'Warga'}</span>
+          {options?.isSpouse ? (
+            <span className="text-rose-500 font-semibold flex items-center gap-0.5">
+              <Heart className="w-2.5 h-2.5 fill-rose-500" /> Pasangan
+            </span>
+          ) : options?.spouseOfName ? (
+            <span className="text-rose-500 font-medium flex items-center gap-0.5 truncate max-w-[100px]" title={`Menikah dg ${options.spouseOfName}`}>
+              <Heart className="w-2 h-2 fill-rose-500 flex-shrink-0" /> {options.spouseOfName}
+            </span>
+          ) : null}
+        </div>
       </div>
     );
   };
@@ -205,11 +219,16 @@ export default function FamilyTreeGraph({ members, onSelectMember, selectedMembe
   const renderBranch = (node: TreeNode) => {
     const hasChildren = node.children && node.children.length > 0;
 
+    // Cek nama pasangan jika dia menikah ke orang lain
+    const spId = node.person.spouseId || members.find((m) => m.spouseId === node.person.id)?.id;
+    const marriedPartner = spId ? members.find((m) => m.id === spId) : undefined;
+    const spouseOfName = (!node.spouse && marriedPartner) ? marriedPartner.callName || marriedPartner.fullName : undefined;
+
     return (
       <div key={node.person.id} className="flex flex-col items-center">
         {/* Simpul Orang / Pasangan Suami & Istri */}
         <div className="flex items-center gap-2 relative z-10">
-          {renderPersonCard(node.person)}
+          {renderPersonCard(node.person, { spouseOfName })}
 
           {node.spouse && (
             <>
