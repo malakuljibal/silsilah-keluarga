@@ -91,6 +91,17 @@ export default function EditMemberModal({
       const savedUpdatesRaw = localStorage.getItem('silsilah_edited_members') || '{}';
       const savedUpdates = JSON.parse(savedUpdatesRaw);
       savedUpdates[person.id] = updatedPerson;
+
+      // Sinkronkan juga spouseId dua arah jika spouseId diubah
+      if (formData.spouseId) {
+        const spouseObj = allMembers.find((m) => m.id === formData.spouseId);
+        if (spouseObj) {
+          savedUpdates[formData.spouseId] = {
+            ...(savedUpdates[formData.spouseId] || spouseObj),
+            spouseId: person.id,
+          };
+        }
+      }
       localStorage.setItem('silsilah_edited_members', JSON.stringify(savedUpdates));
 
       // Jika anggota ini juga ada di silsilah_custom_members, perbarui juga di sana

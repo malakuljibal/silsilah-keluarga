@@ -94,6 +94,20 @@ export default function AddMemberModal({ isOpen, onClose, onSuccess, allMembers,
         localStorage.setItem('silsilah_edited_members', JSON.stringify(savedUpdates));
       }
 
+      // Also update spouse's spouseId symmetrically if spouse is selected
+      if (formData.spouseId) {
+        const savedUpdatesRaw = localStorage.getItem('silsilah_edited_members') || '{}';
+        const savedUpdates = JSON.parse(savedUpdatesRaw);
+        const spouseObj = allMembers.find((m) => m.id === formData.spouseId);
+        if (spouseObj) {
+          savedUpdates[formData.spouseId] = {
+            ...(savedUpdates[formData.spouseId] || spouseObj),
+            spouseId: newId,
+          };
+          localStorage.setItem('silsilah_edited_members', JSON.stringify(savedUpdates));
+        }
+      }
+
       onSuccess(newPerson);
       onClose();
     } catch (err) {

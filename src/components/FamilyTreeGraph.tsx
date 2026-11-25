@@ -56,13 +56,15 @@ export default function FamilyTreeGraph({ members, onSelectMember, selectedMembe
     const buildNode = (p: Person): TreeNode => {
       visitedNodes.add(p.id);
 
+      // Cari pasangan dua arah: p.spouseId ATAU ada anggota lain yang spouseId-nya adalah p.id
       let spouse: Person | undefined = undefined;
       let isSpouseExternal = false;
       let spouseOriginalClan = '';
 
-      if (p.spouseId) {
-        const sp = memberMap.get(p.spouseId);
-        if (sp) {
+      const spId = p.spouseId || members.find((m) => m.spouseId === p.id)?.id;
+      if (spId) {
+        const sp = memberMap.get(spId);
+        if (sp && !visitedNodes.has(sp.id)) {
           spouse = sp;
           visitedNodes.add(sp.id);
           if (p.clan && sp.clan && p.clan.trim().toLowerCase() !== sp.clan.trim().toLowerCase()) {
@@ -102,8 +104,13 @@ export default function FamilyTreeGraph({ members, onSelectMember, selectedMembe
       return !hasParentInDb && !childIdsSet.has(m.id);
     });
 
-    // Urutkan laki-laki lebih dulu jika ada relasi pasangan
+    // Utamakan yang memiliki pasangan lebih dulu, lalu laki-laki, lalu generasi terkecil
     potentialRoots.sort((a, b) => {
+      const aHasSpouse = Boolean(a.spouseId || members.some((m) => m.spouseId === a.id));
+      const bHasSpouse = Boolean(b.spouseId || members.some((m) => m.spouseId === b.id));
+      if (aHasSpouse && !bHasSpouse) return -1;
+      if (!aHasSpouse && bHasSpouse) return 1;
+
       if (a.gender === 'male' && b.gender !== 'male') return -1;
       if (a.gender !== 'male' && b.gender === 'male') return 1;
       return (a.generation || 1) - (b.generation || 1);
